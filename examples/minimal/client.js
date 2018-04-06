@@ -16,7 +16,7 @@ function newToDo(id) {
     
     var callData = {
         eventName: "newToDo",
-        eventData: { name: txt}
+        eventData: txt
     }
 
     window.mainSocket.send(JSON.stringify (callData) );

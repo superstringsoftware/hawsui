@@ -14,7 +14,7 @@ import GHC.Generics
 -- in real apps, it's best to provide specific types
 data GenericEvent = GenericEvent {
     eventName :: Text,
-    eventData :: Object
+    eventData :: Value
 } deriving (Generic, Show)
 
 
