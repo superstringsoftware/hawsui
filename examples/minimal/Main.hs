@@ -6,8 +6,8 @@ import SimpleServer
 
 import Network.WebSockets
 import Data.Text
+import Web.Browser
 
 main :: IO ()
-main = print "Hello world"
+main = runMain "/examples/minimal/ui.html"
 
-    
