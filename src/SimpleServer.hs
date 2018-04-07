@@ -1,4 +1,4 @@
-{-#LANGUAGE OverloadedStrings, DeriveGeneric #-}
+{-#LANGUAGE OverloadedStrings, DeriveGeneric, DuplicateRecordFields #-}
 
 module SimpleServer where
 
@@ -54,5 +54,40 @@ processClientEvent con (Binary _) = print "Binary message processing not impleme
 processClientEvent con (Text msg _) = do
     print $ show msg
     let obj = decode msg :: Maybe GenericEvent
-    sendTextData con ("Accepted" :: Text)
+    consoleLog con "We received your message, thank you!"
     print $ show obj
+
+
+data CallFunctionEvent = CallFunctionEvent {
+    rootName  :: Text,
+    funName   :: [Text],
+    argArray  :: Array -- we are using this to call a function on the client side with apply() - so need to pass an Array of args!!!
+} deriving (Generic, Show)
+
+instance FromJSON CallFunctionEvent
+instance ToJSON CallFunctionEvent where
+    toEncoding = genericToEncoding defaultOptions
+
+data CallSingleArgFunctionEvent = CallSingleArgFunctionEvent {
+    rootName  :: Text,
+    funName   :: [Text],
+    argVal    :: Value
+} deriving (Generic, Show)
+
+instance FromJSON CallSingleArgFunctionEvent
+instance ToJSON CallSingleArgFunctionEvent where
+    toEncoding = genericToEncoding defaultOptions
+
+-- a universal function that calls arbitrary JavaScript function via websocket protocol
+callUI :: Connection -> CallFunctionEvent -> IO ()
+callUI con ev = sendTextData con (encode ev)
+
+callSingleUI :: Connection -> CallSingleArgFunctionEvent -> IO ()
+callSingleUI con ev = sendTextData con (encode ev)
+
+
+-- helper func
+-- we need to change this, as toEncoding is 3x times faster in AESON as they claim!
+consoleLog :: Connection -> Text -> IO ()
+consoleLog con txt = callSingleUI con ev where
+    ev = CallSingleArgFunctionEvent "window" ["console", "log"] (toJSON txt)
