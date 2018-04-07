@@ -1,4 +1,5 @@
 
+// Every event sent from haskell to this processor MUST have an eventType property - it is used as main filtering tool
 class MainEventsProcessor {
     constructor(){
         this.globalEP = new CallEventsProcessor(window);
@@ -6,11 +7,21 @@ class MainEventsProcessor {
     }
 
     // main event processing function
+    // TODO: error processing!!!
     processEvents(event) {
-        console.log(event);
-        var obj = JSON.parse(event.data);
-        console.log(obj);
-        this.globalEP.callJS(obj);
+        // console.log(event);
+        let obj = JSON.parse(event.data);
+
+        // filtering
+        switch(obj.eventType) {
+            case 'GlobalFunctionEvent':
+                this.globalEP.callJS(obj);
+                break;
+            default:
+                console.log("Invalid event type!");
+                console.log(obj);
+        }
+        
     }
 }
 
