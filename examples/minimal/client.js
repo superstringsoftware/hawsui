@@ -1,20 +1,13 @@
-function runMain() {
+import mainProcessor from './EventProcessors.js';
+
+export default function runMain() {
     console.log("starting up...");
     window.mainSocket = new WebSocket("ws://localhost:8080");
-    window.mainSocket.onmessage = processEvents;
+    window.mainSocket.onmessage = mainProcessor.processEvents;
 }
 
-function processEvents (event) {
-    console.log(event);
-    var obj = JSON.parse(event.data);
-    console.log(obj);
-    var fn = window[obj.funName[0]];
-    for (var i = 1; i<obj.funName.length; i++)
-        fn = fn[obj.funName[i]]
-    fn.call(null, obj.argVal);
-  }
 
-function newToDo(id) {
+export function newToDo(id) {
     console.log ("New ToDo creating...");
     var element = document.getElementById(id);
     txt = element.value;
@@ -28,3 +21,4 @@ function newToDo(id) {
     window.mainSocket.send(JSON.stringify (callData) );
     
 }
+
