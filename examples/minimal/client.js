@@ -22,3 +22,7 @@ export function newToDo(id) {
     
 }
 
+export function fileChosen(evt) {
+    var files = evt.target;
+    console.log(target);
+}

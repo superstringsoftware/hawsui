@@ -48,9 +48,8 @@ class CallEventsProcessor {
         if (evt.isSingle) {
             fn.call (null, evt.argVal);
         } else {
-            // TODO: change this BACK to support multi args!!!
-            //fn.apply(null, evt.argArray);
-            fn.call (null, evt.argVal);
+            fn.apply(null, evt.argArray);
+            //fn.call (null, evt.argVal);
         }
     }
 

@@ -26,6 +26,15 @@ dependencies:
 - directory
 - open-browser
 - aeson
+- hml-accelerate # local package referenced by stack.yaml
+- containers
+- gl
+- GLFW-b
+- bindings-GLFW
+- monad-loops
+- nanovg
+- transformers
+- vector
 
 library:
   source-dirs: src
@@ -44,6 +53,16 @@ executables:
   simple-todo:
     main:                Main.hs
     source-dirs:         examples/minimal
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - wsUI
+
+  nanovg:
+    main:                Main.hs
+    source-dirs:         examples/nanovg-default
     ghc-options:
     - -threaded
     - -rtsopts

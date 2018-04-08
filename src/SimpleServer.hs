@@ -72,7 +72,8 @@ data CallSingleArgFunctionEvent = CallSingleArgFunctionEvent {
     eventType :: Text,
     rootName  :: Text,
     funName   :: [Text],
-    argVal    :: Value
+    argVal    :: Value,
+    isSingle  :: Bool
 } deriving (Generic, Show)
 
 instance FromJSON CallSingleArgFunctionEvent
@@ -91,4 +92,4 @@ callSingleUI con ev = sendTextData con (encode ev)
 -- we need to change this, as toEncoding is 3x times faster in AESON as they claim!
 consoleLog :: Connection -> Text -> IO ()
 consoleLog con txt = callSingleUI con ev where
-    ev = CallSingleArgFunctionEvent "GlobalFunctionEvent" "window" ["console", "log"] (toJSON txt)
+    ev = CallSingleArgFunctionEvent "GlobalFunctionEvent" "window" ["console", "log"] (toJSON txt) True

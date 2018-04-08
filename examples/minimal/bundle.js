@@ -47,9 +47,8 @@ class CallEventsProcessor {
         if (evt.isSingle) {
             fn.call (null, evt.argVal);
         } else {
-            // TODO: change this BACK to support multi args!!!
-            //fn.apply(null, evt.argArray);
-            fn.call (null, evt.argVal);
+            fn.apply(null, evt.argArray);
+            //fn.call (null, evt.argVal);
         }
     }
 
@@ -85,6 +84,11 @@ function newToDo(id) {
 
     window.mainSocket.send(JSON.stringify (callData) );
     
+}
+
+function fileChosen(evt) {
+    var files = evt.target.files;
+    console.log(evt);
 }
 
 
