@@ -54,7 +54,7 @@ defaultChart2DOptions = Chart2DOptions {
     padding = V4 20 20 20 20,
     axisColor = rgba 200 200 200 255,
     xAxis = AxisOptions (V2 (-1) 2.4) 0 (rgba 255 0 0 255),
-    yAxis = AxisOptions (V2 0 10  ) 0 (rgba 255 0 0 255)
+    yAxis = AxisOptions (V2 (-3) 10  ) 0 (rgba 255 0 0 255)
 }
 
 drawBubbles :: Context -> U.Vector (Double, Double, Double) -> V4 CFloat -> IO ()
@@ -83,6 +83,7 @@ drawChart c opt x y = do
         h = height opt
         (V4 px1 py1 px2 py2) = padding opt
     
+    scissor c 0 0 w h -- so that we don't draw outside of the chart area - need a hierarchy 
     -- chart background
     beginPath c
     rect c 0 0 w h
@@ -98,21 +99,15 @@ drawChart c opt x y = do
         scy = (h - py1 - py2) / realToFrac (ymax - ymin) -- need to scale the axis
         
     save c
-    scale c sc 1
-    translate c (negate (realToFrac xmin) + px1 / sc) (h - py2) -- (negate (realToFrac xmin) * sc) 0
+    scale c sc (negate scy)
+    translate c (negate (realToFrac xmin) + px1 / sc) (negate $ realToFrac ymax + py1 / scy) -- (h - py2) -- (negate (realToFrac xmin) * sc) 0
     strokeWidth c (2 / sc)
     strokeColor c (color ax)
     beginPath c
     moveTo c (realToFrac xmin) 0
     lineTo c (realToFrac xmax) 0
     stroke c
-    restore c
-
-    print $ "X, Y scale = " Prelude.++ show sc Prelude.++ ", " Prelude.++ show scy 
-    save c
-    scale c 1 scy
-    translate c px1 (negate (realToFrac ymin) + py1 / scy ) -- (negate (realToFrac xmin) * sc) 0
-    strokeWidth c (2 / scy)
+    
     strokeColor c (color ay)
     beginPath c
     moveTo c 0 (realToFrac ymin)
@@ -132,3 +127,4 @@ drawChart c opt x y = do
 
     restore c
 
+-- _drawAxis 
