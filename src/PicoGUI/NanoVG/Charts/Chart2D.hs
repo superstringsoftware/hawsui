@@ -1,5 +1,10 @@
 {-#LANGUAGE OverloadedStrings, DuplicateRecordFields #-}
 
+{-
+TODO LIST
+- Proper Axis drawing based on chart screen dimensions, axis minMax and where axes cross each other
+-}
+
 module PicoGUI.NanoVG.Charts.Chart2D where
 
 import           Foreign.C.Types
@@ -9,6 +14,8 @@ import           Data.Vector.Unboxed as U
 import           Data.Vector.Generic as G
 import           Data.Vector as V
 
+import qualified PicoGUI.NanoVG.Charts.Data as CD
+
 -- these are VISUAL options, which means they should be CALCULATED elsewhere into screen coords
 -- this allows for caching, if data changes we recalculate.
 -- OR - can we do it via transform matrix??? GPU should be able to handle it?
@@ -16,7 +23,7 @@ data AxisOptions = AxisOptions {
     minMax    :: V2 Double -- (min, max) for the axis
   , crossesAt :: !Double -- where it crosses the other axis
   , color     :: Color
-} deriving Show
+} 
 
 data Chart2DOptions = Chart2DOptions {
     bgColor     :: Color
@@ -27,7 +34,17 @@ data Chart2DOptions = Chart2DOptions {
   , axisColor   :: Color
   , xAxis       :: AxisOptions
   , yAxis       :: AxisOptions
-} deriving Show
+  , series      :: V.Vector CD.DataSeries
+} 
+
+{-
+How to handle scaling and transformation from the data?
+We are storing everything numeric as CFloat, but that will screw up numbers such as 12.1 as we know - how do we handle this?
+For now, let's just deal with scaling:
+    - if an axis has the scales setup manually, no issue
+    - otherwise, need to find maximum and minimum in all the data being displayed and setup axis minMax accordingly - 
+    - the chart should ALWAYS draw according to what's in the Axis options
+-}
 
 defaultChart2DOptions = Chart2DOptions {
     bgColor = rgba 0 0 0 255,
@@ -61,9 +78,10 @@ drawChart :: Context -> Chart2DOptions -> CFloat -> CFloat -> IO ()
 drawChart c opt x y = do
     save c
     
-    translate c x y 
+    translate c x y -- translating into global coordinates
     let w = width opt
         h = height opt
+        (V4 px1 py1 px2 py2) = padding opt
     
     -- chart background
     beginPath c
@@ -71,13 +89,17 @@ drawChart c opt x y = do
     fillColor c (bgColor opt)
     fill c
 
-    save c
+    
     let ax =  xAxis opt
         (V2 xmin xmax) = minMax ax
-        sc = w / realToFrac (xmax - xmin) -- need to scale the axis
-    
+        sc = (w - px1 - px2) / realToFrac (xmax - xmin) -- need to scale the axis
+        ay = yAxis opt
+        (V2 ymin ymax) = minMax ay
+        scy = (h - py1 - py2) / realToFrac (ymax - ymin) -- need to scale the axis
+        
+    save c
     scale c sc 1
-    translate c (negate (realToFrac xmin)) 0 -- (negate (realToFrac xmin) * sc) 0
+    translate c (negate (realToFrac xmin) + px1 / sc) (h - py2) -- (negate (realToFrac xmin) * sc) 0
     strokeWidth c (2 / sc)
     strokeColor c (color ax)
     beginPath c
@@ -86,8 +108,19 @@ drawChart c opt x y = do
     stroke c
     restore c
 
+    print $ "X, Y scale = " Prelude.++ show sc Prelude.++ ", " Prelude.++ show scy 
+    save c
+    scale c 1 scy
+    translate c px1 (negate (realToFrac ymin) + py1 / scy ) -- (negate (realToFrac xmin) * sc) 0
+    strokeWidth c (2 / scy)
+    strokeColor c (color ay)
+    beginPath c
+    moveTo c 0 (realToFrac ymin)
+    lineTo c 0 (realToFrac ymax)
+    stroke c
+    restore c
+
     -- axis
-    let (V4 px1 py1 px2 py2) = padding opt
     strokeWidth c 1
     strokeColor c (axisColor opt)
     beginPath c
