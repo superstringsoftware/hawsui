@@ -15,6 +15,7 @@ import           Data.Vector.Generic as G
 import           Data.Vector as V
 
 import qualified PicoGUI.NanoVG.Charts.Data as CD
+import PicoGUI.NanoVG.Charts.Primitives
 
 -- these are VISUAL options, which means they should be CALCULATED elsewhere into screen coords
 -- this allows for caching, if data changes we recalculate.
@@ -35,6 +36,7 @@ data Chart2DOptions = Chart2DOptions {
   , xAxis       :: AxisOptions
   , yAxis       :: AxisOptions
   , series      :: V.Vector CD.DataSeries
+  , chartType   :: CD.SeriesType
 } 
 
 {-
@@ -53,13 +55,15 @@ defaultChart2DOptions = Chart2DOptions {
     height = 1000,
     padding = V4 20 20 20 20,
     axisColor = rgba 200 200 200 255,
-    xAxis = AxisOptions (V2 (-1) 2.4) 0 (rgba 255 0 0 255),
-    yAxis = AxisOptions (V2 (-3) 10  ) 0 (rgba 255 0 0 255)
+    xAxis = AxisOptions (V2 (-1) 20) 0 (rgb 0 255 0),
+    yAxis = AxisOptions (V2 (-3) 7  ) 0 (rgb 0 255 0),
+    series = V.fromList [CD.testSeries1, CD.testSeries2],
+    chartType = CD.LineS
 }
 
 drawBubbles :: Context -> U.Vector (Double, Double, Double) -> V4 CFloat -> IO ()
 drawBubbles c dataPoints transVector = do
-    putStrLn "Drawing data"
+    -- putStrLn "Drawing data"
     save c
     let (V4 tx ty sx sy) = transVector
     translate c tx ty
@@ -83,48 +87,58 @@ drawChart c opt x y = do
         h = height opt
         (V4 px1 py1 px2 py2) = padding opt
     
-    scissor c 0 0 w h -- so that we don't draw outside of the chart area - need a hierarchy 
     -- chart background
     beginPath c
     rect c 0 0 w h
     fillColor c (bgColor opt)
     fill c
 
+    scissor c px1 py1 (w - px2 - px1) (h - py2 - py1) -- so that we don't draw outside of the chart area - need a hierarchy 
     
+    -- calculating axes scales
     let ax =  xAxis opt
         (V2 xmin xmax) = minMax ax
-        sc = (w - px1 - px2) / realToFrac (xmax - xmin) -- need to scale the axis
+        scx = (w - px1 - px2) / realToFrac (xmax - xmin) -- need to scale the axis
         ay = yAxis opt
         (V2 ymin ymax) = minMax ay
         scy = (h - py1 - py2) / realToFrac (ymax - ymin) -- need to scale the axis
         
+    -- draw axes
     save c
-    scale c sc (negate scy)
-    translate c (negate (realToFrac xmin) + px1 / sc) (negate $ realToFrac ymax + py1 / scy) -- (h - py2) -- (negate (realToFrac xmin) * sc) 0
-    strokeWidth c (2 / sc)
-    strokeColor c (color ax)
-    beginPath c
-    moveTo c (realToFrac xmin) 0
-    lineTo c (realToFrac xmax) 0
-    stroke c
+    -- setting the scale and transform for the data
+    scale c scx (negate scy)
+    translate c (negate (realToFrac xmin) + px1 / scx) (negate $ realToFrac ymax + py1 / scy) 
+    -- drawing axes
+    strokeWidth c (1 / scx ) -- why only x scaling is relevant here???
+    lineColor c (realToFrac xmin) 0 (realToFrac xmax) 0 (color ax) --x
+    lineColor c 0 (realToFrac ymin) 0 (realToFrac ymax) (color ay) --y
     
-    strokeColor c (color ay)
-    beginPath c
-    moveTo c 0 (realToFrac ymin)
-    lineTo c 0 (realToFrac ymax)
-    stroke c
+    -- dataseries
+    G.mapM_ (_drawSeries c) (series opt) 
+
     restore c
 
-    -- axis
+    -- frame
     strokeWidth c 1
     strokeColor c (axisColor opt)
     beginPath c
-    moveTo c px1 (h - py2)
-    lineTo c (w - px2) (h - py2)
-    moveTo c px1 py1
-    lineTo c px1 (h - py1)
+    rect c px1 py1 (w - px1 - px2) (h - py1 - py2) 
     stroke c
 
+    
     restore c
 
--- _drawAxis 
+_drawSeries :: Context -> CD.DataSeries -> IO ()
+_drawSeries c ds = do
+    let ps = CD.points ds
+        cl = CD.color ds
+        t  = CD.stype ds
+    -- line series only for now
+    strokeColor c cl
+    beginPath c
+    case ps of 
+        (CD.Series1D v) -> do
+            moveTo c 0 (realToFrac $ v G.! 0)
+            G.imapM_ (lt c) (G.tail v) 
+            stroke c
+            where lt c i y = lineTo c (fromIntegral $ i + 1) (realToFrac y)

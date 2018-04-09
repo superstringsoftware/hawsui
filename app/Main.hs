@@ -72,7 +72,7 @@ main =
 renderDemo :: Context -> Double -> Double -> Int -> Int -> Double -> IO ()
 renderDemo c mx my w h t =
   do drawChart c defaultChart2DOptions 150 150
-     drawBubbles c bubbles (V4 150 1150 10 (-10))
+     -- drawBubbles c bubbles (V4 150 1150 10 (-10))
      -- transform matrix to move from (x,y) in top left corner and y-axis down to bottom-left and y-axis up is:
      -- negative yscale (gives reflection) + y translate the size of the height. That's it, very easy.
 
