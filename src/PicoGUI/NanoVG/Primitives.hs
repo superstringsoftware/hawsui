@@ -12,10 +12,17 @@ import           NanoVG as N
 import           Data.Text
 import           PicoGUI.NanoVG.MD.Color
 
+-- import Data.Maybe
+
+-- does nothing when it's Nothing, applies IO action when it's Just
+maybe' :: (a -> IO ()) -> Maybe a -> IO ()
+maybe' f (Just x) = f x
+maybe' f Nothing = return ()
 
 data Panel = Panel {
     dimensions  :: V4 CFloat -- (px,py,w,h) - px,py - coordinates relative to the parent
   , borders     :: V4 (Maybe Border) -- top, right, bottom, left
+  , singleBorder :: Maybe Border
   , cornerRad   :: !CFloat -- radius of the rounded corners, if 0 - square
   , background  :: Background
 } 
@@ -28,15 +35,26 @@ drawPanel c pan = do
         bg                  = background pan
     beginPath c
     fillColor c (solidColor bg)
-    rect c px py w h 
+    maybe' (_drawBorder c) (singleBorder pan)
+    roundedRect c px py w h rad 
     fill c
     stroke c
+     
+ 
+
+_drawBorder :: Context -> Border -> IO()
+_drawBorder c brd = do
+    strokeWidth c (PicoGUI.NanoVG.Primitives.width brd)
+    strokeColor c (PicoGUI.NanoVG.Primitives.color (brd :: Border) )
+    
+
 
 testPanel = Panel {
-  dimensions = V4 40 600 500 300,
+  dimensions = V4 40 600 400 160,
   borders = V4 Nothing Nothing Nothing Nothing,
-  cornerRad = 8,
-  background = Background Nothing (mdBlue 500)
+  cornerRad = 20,
+  background = Background Nothing (mdBlue 500),
+  singleBorder = Just $ Border 2 (rgba 220 220 100 220) PicoGUI.NanoVG.Primitives.Solid 
 }
 
 data Background = Background {
@@ -55,7 +73,7 @@ data Shadow = Shadow {
 
 -- need to follow CSS eventually
 data Border = Border {
-    width :: !Int,       -- computed width, ALWAYS in pixels
+    width :: !CFloat,       -- computed width, ALWAYS in pixels
     color :: Color,
     style :: LineStyle
 } deriving (Show, Eq)
