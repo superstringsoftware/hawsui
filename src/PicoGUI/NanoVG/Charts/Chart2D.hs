@@ -15,7 +15,7 @@ import           Data.Vector.Generic as G
 import           Data.Vector as V
 
 import qualified PicoGUI.NanoVG.Charts.Data as CD
-import PicoGUI.NanoVG.Charts.Primitives
+import PicoGUI.NanoVG.Primitives
 
 -- these are VISUAL options, which means they should be CALCULATED elsewhere into screen coords
 -- this allows for caching, if data changes we recalculate.
@@ -83,7 +83,7 @@ drawChart c opt x y = do
     save c
     
     translate c x y -- translating into global coordinates
-    let w = width opt
+    let w = width (opt :: Chart2DOptions)
         h = height opt
         (V4 px1 py1 px2 py2) = padding opt
     
@@ -110,8 +110,8 @@ drawChart c opt x y = do
     translate c (negate (realToFrac xmin) + px1 / scx) (negate $ realToFrac ymax + py1 / scy) 
     -- drawing axes
     strokeWidth c (1 / scx ) -- why only x scaling is relevant here???
-    lineColor c (realToFrac xmin) 0 (realToFrac xmax) 0 (color ax) --x
-    lineColor c 0 (realToFrac ymin) 0 (realToFrac ymax) (color ay) --y
+    lineColor c (realToFrac xmin) 0 (realToFrac xmax) 0 (color (ax :: AxisOptions) ) --x
+    lineColor c 0 (realToFrac ymin) 0 (realToFrac ymax) (color (ay :: AxisOptions)) --y
     
     -- dataseries
     G.mapM_ (_drawSeries c) (series opt) 

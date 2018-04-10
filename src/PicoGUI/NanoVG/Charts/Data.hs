@@ -28,7 +28,7 @@ data DataSeries = DataSeries {
   , stype   :: SeriesType
 } -- deriving Show
 
--- what if we have columns? like a spreadsheet? TBD.
+-- what if we have columns? like a spreadsheet? TBD - but that's going to be more efficient than row approach with DataPoint
 
 testSeries1 = DataSeries {
     points = Series1D $ U.fromList [1.0,2.3,5.1,2,3,4,5,4,3,5],

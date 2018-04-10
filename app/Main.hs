@@ -24,7 +24,8 @@ import           Foreign.C.Types
 import           Foreign.Ptr
 
 import           PicoGUI.NanoVG.Charts.Chart2D
-
+import           PicoGUI.NanoVG.Primitives
+import           PicoGUI.NanoVG.MD.Color
 
 foreign import ccall unsafe "glewInit"
   glewInit :: IO CInt
@@ -50,6 +51,7 @@ main =
               GL_NO_ERROR -> do 
                 putStrLn "All is ok with GL, proceeding..."
                 c@(Context c') <- createGL3 (S.fromList [Antialias,StencilStrokes,Debug])
+                defaultFont <- createFont c "sans" (FileName "nanovg/example/Roboto-Regular.ttf")
                 -- error handling? who needs that anyway
                 swapInterval 0
                 setTime 0
@@ -72,10 +74,17 @@ main =
 renderDemo :: Context -> Double -> Double -> Int -> Int -> Double -> IO ()
 renderDemo c mx my w h t =
   do drawChart c defaultChart2DOptions 150 150
+     drawPanel c testPanel
+     drawTestText c
      -- drawBubbles c bubbles (V4 150 1150 10 (-10))
      -- transform matrix to move from (x,y) in top left corner and y-axis down to bottom-left and y-axis up is:
      -- negative yscale (gives reflection) + y translate the size of the height. That's it, very easy.
 
+drawTestText c = do
+    save c
+    drawText c "sans" 36 (mdWhite) 400 20 "Hello World"
+    drawText c "sans" 100 (mdWhite) 400 60 "Heading"
+    restore c
 
 bubbles :: U.Vector (Double, Double, Double)
 bubbles = U.fromList [
