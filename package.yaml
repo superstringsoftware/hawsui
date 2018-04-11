@@ -35,6 +35,8 @@ dependencies:
 - nanovg
 - transformers
 - vector
+- stm
+- pretty
 
 library:
   source-dirs: src

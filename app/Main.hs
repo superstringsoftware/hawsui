@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
@@ -15,7 +15,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as U
 import           Graphics.GL.Core32
-import           Graphics.UI.GLFW hiding (Image)
+import           Graphics.UI.GLFW as GLFW hiding (Image)
 import           NanoVG as NVG
 import           NanoVG.Internal.Text as Internal
 import           Prelude hiding (init)
@@ -26,64 +26,103 @@ import           Foreign.Ptr
 import           PicoGUI.NanoVG.Charts.Chart2D
 import           PicoGUI.NanoVG.Primitives
 import           PicoGUI.NanoVG.MD.Color
+import           PicoGUI.NanoVG.Widgets.Widget as W
+import           PicoGUI.NanoVG.UI
 
-foreign import ccall unsafe "glewInit"
-  glewInit :: IO CInt
+import           Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
+import           Control.Monad.Trans.RWS.Strict  (RWST, ask, asks, evalRWST, get, modify, put, gets)
+import           Control.Monad.IO.Class (liftIO)
+
+main = mainCycle
+
+mainCycle :: IO ()
+mainCycle = do
+    let width  = 2000
+        height = 1200
+
+    eventsChan <- newTQueueIO :: IO (TQueue Event)
+
+    withWindow width height "Pico UI" $ \win c -> do
+        setupEventChannel win eventsChan
+
+        defaultFont <- NVG.createFont c "sans" (FileName "nanovg/example/Roboto-Regular.ttf")
+        -- error handling? who needs that anyway
+        GLFW.swapInterval 0
+        GLFW.setTime 0
+
+        (fbWidth, fbHeight) <- GLFW.getFramebufferSize win
+
+        let zDistClosest  = 10
+            zDistFarthest = zDistClosest + 20
+            zDist         = zDistClosest + ((zDistFarthest - zDistClosest) / 2)
+            env = Env { 
+              envEventsChan    = eventsChan
+            , envWindow        = win
+            , envContext       = c
+            }
+            state = State { 
+              stateWindowWidth     = fbWidth
+            , stateWindowHeight    = fbHeight
+            , stateMouseDown       = False
+            , stateDragging        = False
+            , stateDragStartX      = 0
+            , stateDragStartY      = 0
+            , stateUIWidgets       = testUI
+            , stateCursorInW       = []
+            }
+        runDemo env state
+
+    putStrLn "ended!"
 
 
-main :: IO ()
-main =
-  do e <- init
-     unless e $ putStrLn "Failed to init GLFW"
-     windowHint $ WindowHint'ContextVersionMajor 3
-     windowHint $ WindowHint'ContextVersionMinor 2
-     windowHint $ WindowHint'OpenGLForwardCompat True
-     windowHint $ WindowHint'OpenGLProfile OpenGLProfile'Core
-     windowHint $ WindowHint'OpenGLDebugContext True
-     win <- createWindow 3000 1800 "pico GUI" Nothing Nothing
-     case win of
-       Nothing -> putStrLn "Failed to create window" >> terminate
-       Just w ->
-         do makeContextCurrent win
-            glewInit
-            err1 <- glGetError
-            case err1 of
-              GL_NO_ERROR -> do 
-                putStrLn "All is ok with GL, proceeding..."
-                c@(Context c') <- createGL3 (S.fromList [Antialias,StencilStrokes,Debug])
-                defaultFont <- createFont c "sans" (FileName "nanovg/example/Roboto-Regular.ttf")
-                -- error handling? who needs that anyway
-                swapInterval 0
-                setTime 0
-                whileM_ (not <$> windowShouldClose w) $
-                  do  Just t <- getTime
-                      (mx,my) <- getCursorPos w
-                      (width,height) <- getWindowSize w
-                      (fbWidth,fbHeight) <- getFramebufferSize w
-                      let pxRatio = fromIntegral fbWidth / fromIntegral width
-                      glViewport 0 0 (fromIntegral fbWidth) (fromIntegral fbHeight)
-                      glClearColor 0.1 0.1 0.1 1.0
-                      glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT .|. GL_STENCIL_BUFFER_BIT)
-                      beginFrame c (fromIntegral width) (fromIntegral height) pxRatio
-                      renderDemo c mx my width height t
-                      endFrame c
-                      swapBuffers w
-                      waitEvents -- pollEvents
-              otherwise -> putStrLn ("GL error" ++ show err1) >> terminate
+runDemo :: Env -> State -> IO ()
+runDemo env state = do
+    printInstructions
+    void $ evalRWST run env state
 
-renderDemo :: Context -> Double -> Double -> Int -> Int -> Double -> IO ()
-renderDemo c mx my w h t =
+run :: Demo ()
+run = do
+    w  <- asks envWindow
+    c  <- asks envContext
+    ui <- gets stateUIWidgets
+
+    (mx,my) <- liftIO $ getCursorPos w
+    -- putStrLn $ "Cursor position: " ++ (show mx) ++ ", " ++ (show my)
+    (width,height) <- liftIO $ getWindowSize w
+    (fbWidth,fbHeight) <- liftIO $ getFramebufferSize w
+    let pxRatio = fromIntegral fbWidth / fromIntegral width
+    liftIO $ glViewport 0 0 (fromIntegral fbWidth) (fromIntegral fbHeight)
+    liftIO $ glClearColor 0.1 0.1 0.1 1.0
+    liftIO $ glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT .|. GL_STENCIL_BUFFER_BIT)
+    liftIO $ beginFrame c (fromIntegral width) (fromIntegral height) pxRatio
+    liftIO $ NVG.textAlign c (S.fromList [AlignTop])
+    -- liftIO $ renderDemo c mx my width height
+    liftIO $ render c ui
+    liftIO $ endFrame c
+    liftIO $ swapBuffers w
+    liftIO $ waitEvents -- pollEvents
+
+    processEvents
+
+    q <- liftIO $ GLFW.windowShouldClose w
+    unless q run
+
+renderDemo :: Context -> Double -> Double -> Int -> Int -> IO ()
+renderDemo c mx my w h =
   do drawChart c defaultChart2DOptions 150 150
      drawPanel c testPanel
      drawTestText c
+     translate c 1000 60
      -- drawBubbles c bubbles (V4 150 1150 10 (-10))
      -- transform matrix to move from (x,y) in top left corner and y-axis down to bottom-left and y-axis up is:
      -- negative yscale (gives reflection) + y translate the size of the height. That's it, very easy.
 
 drawTestText c = do
     save c
-    drawText c "sans" 36 (mdWhite) 400 20 "Hello World"
-    drawText c "sans" 100 (mdWhite) 400 60 "Heading"
+    translate c 400 200
+    drawText c "sans" 36 (mdWhite) "Hello World"
+    translate c 0 100
+    drawText c "sans" 100 (mdWhite) "Heading"
     restore c
 
 bubbles :: U.Vector (Double, Double, Double)
@@ -92,3 +131,44 @@ bubbles = U.fromList [
         (13,8,2),
         (27,14,2.4)
     ]
+
+testButton = Button {
+    panel = Panel {
+        dimensions = V4 600 200 120 60,
+        cornerRad = 8,
+        background = Background Nothing (mdGrey 300),
+        singleBorder = Just $ Border 2 (rgba 220 220 100 220) PicoGUI.NanoVG.Primitives.Solid 
+    },
+    textLabel = TextLabel {
+        W.text = "Enter",
+        W.fontSize = 48,
+        fontName = "sans",
+        fontColor = mdBlack
+    },
+    W.padding = V4 8 8 8 8,
+    isDirty = False
+}
+
+testInput = InputText {
+    button =  Button {
+        panel = Panel {
+            dimensions = V4 600 300 220 60,
+            cornerRad = 0,
+            background = Background Nothing mdWhite,
+            singleBorder = Just $ Border 2 (rgb 220 50 220) PicoGUI.NanoVG.Primitives.Solid 
+        },
+        textLabel = TextLabel {
+            W.text = "input",
+            W.fontSize = 48,
+            fontName = "sans",
+            fontColor = mdBlack
+        },
+        W.padding = V4 8 8 8 8,
+        isDirty = False
+    },
+    cursorPos = 0,
+    displayedStringCoords = V2 0 0
+}
+
+testUI :: PWList
+testUI = [PW testButton, PW testInput]
