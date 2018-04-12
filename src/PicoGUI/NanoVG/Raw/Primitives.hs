@@ -5,19 +5,16 @@ TODO LIST
 - Proper Axis drawing based on chart screen dimensions, axis minMax and where axes cross each other
 -}
 
-module PicoGUI.NanoVG.Primitives where
+module PicoGUI.NanoVG.Raw.Primitives where
 
 import           Foreign.C.Types
-import           NanoVG as N
+import           NanoVG as N hiding (width)
 import           Data.Text
 import           PicoGUI.NanoVG.MD.Color
+import           PicoGUI.Util
 
 -- import Data.Maybe
 
--- does nothing when it's Nothing, applies IO action when it's Just
-maybe' :: (a -> IO ()) -> Maybe a -> IO ()
-maybe' f (Just x) = f x
-maybe' f Nothing = return ()
 
 data Panel = Panel {
     dimensions  :: V4 CFloat -- (px,py,w,h) - px,py - coordinates relative to the parent
@@ -25,6 +22,14 @@ data Panel = Panel {
   , singleBorder :: Maybe Border
   , cornerRad   :: !CFloat -- radius of the rounded corners, if 0 - square
   , background  :: Background
+} deriving Show
+
+-- need error handling with fonts!
+data TextLabel = TextLabel {
+    labelText :: Text,
+    fontSize  :: !CFloat,
+    fontName  :: Text,
+    fontColor :: Color
 } deriving Show
 
 drawPanel :: Context -> Panel -> IO ()
@@ -45,8 +50,8 @@ drawPanel c pan = do
  
 _drawBorder :: Context -> Border -> IO()
 _drawBorder c brd = do
-    strokeWidth c (PicoGUI.NanoVG.Primitives.width brd)
-    strokeColor c (PicoGUI.NanoVG.Primitives.color (brd :: Border) )
+    strokeWidth c (width brd)
+    strokeColor c (PicoGUI.NanoVG.Raw.Primitives.color (brd :: Border) )
     
 
 
@@ -55,7 +60,7 @@ testPanel = Panel {
   -- borders = V4 Nothing Nothing Nothing Nothing,
   cornerRad = 20,
   background = Background Nothing (mdBlue 500),
-  singleBorder = Just $ Border 2 (rgba 220 220 100 220) PicoGUI.NanoVG.Primitives.Solid 
+  singleBorder = Just $ Border 2 (rgba 220 220 100 220) PicoGUI.NanoVG.Raw.Primitives.Solid 
 }
 
 data Background = Background {
@@ -79,14 +84,20 @@ data Border = Border {
     style :: LineStyle
 } deriving (Show, Eq)
 
--- drawText :: 
-drawText c fName size clr txt = do
+drawText :: Context -> TextLabel -> IO()
+drawText c tl = do
+    let fName = fontName tl 
+        size  = PicoGUI.NanoVG.Raw.Primitives.fontSize tl
+        clr   = fontColor tl
+        txt   = labelText tl
     beginPath c
-    fontSize c size
+    N.fontSize c size
     fontFace c fName
     fillColor c clr
     text c 0 0 txt
     fill c
+
+drawTextSave c tl = save c >> drawText c tl >> restore c
 
 line :: Context -> CFloat -> CFloat -> CFloat -> CFloat -> IO ()
 line c x1 y1 x2 y2 = do

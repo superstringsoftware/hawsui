@@ -15,7 +15,7 @@ import           Data.Vector.Generic as G
 import           Data.Vector as V
 
 import qualified PicoGUI.NanoVG.Charts.Data as CD
-import PicoGUI.NanoVG.Primitives
+import PicoGUI.NanoVG.Raw.Primitives
 
 -- these are VISUAL options, which means they should be CALCULATED elsewhere into screen coords
 -- this allows for caching, if data changes we recalculate.

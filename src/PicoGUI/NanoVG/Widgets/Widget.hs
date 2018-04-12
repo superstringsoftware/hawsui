@@ -10,7 +10,7 @@ import           Foreign.C.Types
 import           NanoVG as N
 import           Data.Text
 import           PicoGUI.NanoVG.MD.Color
-import           PicoGUI.NanoVG.Primitives
+import           PicoGUI.NanoVG.Raw.Primitives as GUIP
 import           PicoGUI.NanoVG.EventProcessor
 import           Control.Monad (filterM)
 
@@ -63,20 +63,12 @@ instance NVGWidget PanelwChildren where
         where f c (PW x) = render c x
          
 
--- need error handling with fonts!
-data TextLabel = TextLabel {
-    text      :: Text,
-    fontSize  :: !CFloat,
-    fontName  :: Text,
-    fontColor :: Color
-} deriving Show
-
 instance NVGWidget TextLabel where
     recalculate p = p
     getBoundingBox c tl = do
-        (Bounds bb) <- textBounds c 0 0 (PicoGUI.NanoVG.Widgets.Widget.text tl)
+        (Bounds bb) <- textBounds c 0 0 (labelText tl)
         return bb
-    render c tl = drawText c (fontName tl) (PicoGUI.NanoVG.Widgets.Widget.fontSize tl) (fontColor tl) (PicoGUI.NanoVG.Widgets.Widget.text tl)
+    render = drawText
 
 -- first custom composite widget - panel and a text label, turning into a button
 -- actually, input text box with one line will be exactly the same, only with somewhat different state handling (gutter position and visible part of text)

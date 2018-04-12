@@ -24,10 +24,11 @@ import           Foreign.C.Types
 import           Foreign.Ptr
 
 import           PicoGUI.NanoVG.Charts.Chart2D
-import           PicoGUI.NanoVG.Primitives
+import           PicoGUI.NanoVG.Raw.Primitives as GUIP
 import           PicoGUI.NanoVG.MD.Color
 import           PicoGUI.NanoVG.Widgets.Widget as W
 import           PicoGUI.NanoVG.UI
+import           PicoGUI.NanoVG.Raw.Events
 
 import           Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
 import           Control.Monad.Trans.RWS.Strict  (RWST, ask, asks, evalRWST, get, modify, put, gets)
@@ -120,9 +121,9 @@ renderDemo c mx my w h =
 drawTestText c = do
     save c
     translate c 400 200
-    drawText c "sans" 36 (mdWhite) "Hello World"
+    --drawText c "sans" 36 (mdWhite) "Hello World"
     translate c 0 100
-    drawText c "sans" 100 (mdWhite) "Heading"
+    --drawText c "sans" 100 (mdWhite) "Heading"
     restore c
 
 bubbles :: U.Vector (Double, Double, Double)
@@ -137,11 +138,11 @@ testButton = Button {
         dimensions = V4 600 200 120 60,
         cornerRad = 8,
         background = Background Nothing (mdGrey 300),
-        singleBorder = Just $ Border 2 (rgba 220 220 100 220) PicoGUI.NanoVG.Primitives.Solid 
+        singleBorder = Just $ Border 2 (rgba 220 220 100 220) GUIP.Solid 
     },
     textLabel = TextLabel {
-        W.text = "Enter",
-        W.fontSize = 48,
+        labelText = "Enter",
+        GUIP.fontSize = 48,
         fontName = "sans",
         fontColor = mdBlack
     },
@@ -155,11 +156,11 @@ testInput = InputText {
             dimensions = V4 600 300 220 60,
             cornerRad = 0,
             background = Background Nothing mdWhite,
-            singleBorder = Just $ Border 2 (rgb 220 50 220) PicoGUI.NanoVG.Primitives.Solid 
+            singleBorder = Just $ Border 2 (rgb 220 50 220) GUIP.Solid 
         },
         textLabel = TextLabel {
-            W.text = "input",
-            W.fontSize = 48,
+            labelText = "input",
+            GUIP.fontSize = 48,
             fontName = "sans",
             fontColor = mdBlack
         },
