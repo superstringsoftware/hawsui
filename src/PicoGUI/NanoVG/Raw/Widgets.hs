@@ -11,10 +11,11 @@ import qualified NanoVG as N
 import           Data.Text
 import           PicoGUI.NanoVG.MD.Color
 -- import qualified PicoGUI.NanoVG.Raw.Primitives as GUIP
-import           Control.Monad (filterM)
+import           Control.Monad (filterM, when)
 -- import           PicoGUI.NanoVG.Raw.Events
 import qualified PicoGUI.NanoVG.Raw.Style as Style
 import           PicoGUI.Util
+import           PicoGUI.NanoVG.Raw.Panel
 
 -----------------------------------------------------------------------------------------
 {-
@@ -52,87 +53,36 @@ Low-Level Widget is:
 -}
 -----------------------------------------------------------------------------------------
 
--- these events are higher level than GLFW we are handling in Raw.Events - they will be dispatched by a low level event processor
--- that will handle stuff like which widget is active etc
-data WEvent = 
-    WEventCursorEnter -- cursor entered widget area
-  | WEventCursorLeave -- cursor left widget area
-  deriving Show
-
-type RawEventHandler a b = WEvent -> RawWidget a b -> RawWidget a b
-
-
 -- Type function generating different widgets with data props of type a and visual props of type b
-data RawWidget a b = CreateWidget {
-    dataProps   :: a,
-    visualProps :: b,
-    renderRW    :: N.Context -> a -> b -> IO (),
-    -- current approach with event handling - we are simply transforming the current widget Props, nothing else!
-    -- theoretically, with composite widgets we then can use "state propagates down" approach like in React
-    handleEvents :: [RawEventHandler a b]
+data RawWidget d v = CreateWidget {
+    panel       :: Panel, -- handles basic events and background etc.
+    dataProps   :: d,
+    visualProps :: v,
+    renderRW    :: N.Context -> Panel -> d -> v -> IO ()
 }
 
 -- interface to the widgets
 class RawWidgetClass w where
     -- rendering a widget in a context
     render :: N.Context -> w -> IO()
-    -- rendering a widget with the list of classes to be applied!!! - we don't want the widget's render function to go anywhere global, so passing explicitly!
-    -- however, no default implementation
-    renderStyled :: N.Context -> w -> [Style.VisualClass] -> IO ()
-    handleEvent :: WEvent -> w -> w
+    getBoundingBox :: w -> N.V4 CFloat
+    isInWidget :: w -> CFloat -> CFloat -> Bool
+
     
--- default implementation for render
-instance RawWidgetClass (RawWidget a b) where
-    render c w = r c (dataProps w) (visualProps w) where r = renderRW w
-    -- handleEvent ev w = fold 
-
-
------------------------------------------------------------------------------------------
--- WIDGETS: Panel
------------------------------------------------------------------------------------------
-
--- visual props data type for the panel: first, all 4 dimensions (x y w h), then visual styling 
-data RawPanelStyle = RawPanelStyle (N.V4 CFloat) Style.Panel
-
--- basic Widget-building-block: panel
--- dataProps :: Maybe Text - selector from the GLOBAL class list table, if present
--- visualProps :: RawPanelStyle - data on how to draw
-type WidgetRawPanel = RawWidget (Maybe Text) RawPanelStyle
-
--- constructor function
-createRawPanel :: RawPanelStyle -> Maybe Text -> [RawEventHandler (Maybe Text) RawPanelStyle] -> WidgetRawPanel 
-createRawPanel ps txt handlers = CreateWidget {
-    dataProps = txt,
-    visualProps = ps,
-    renderRW = _drawPanel,
-    handleEvents = handlers
-}
-
-_drawPanel :: N.Context -> Maybe Text -> RawPanelStyle -> IO ()
-_drawPanel c txt (RawPanelStyle (N.V4 px py w h) pan) = do
-    let rad = Style.cornerRad pan
-        bg  = Style.background pan
-    N.save c
-    N.beginPath c
-    case bg of 
-        (Style.BGColor clr) -> N.fillColor c clr
-        (Style.BGComplex pnt) -> return()
-    maybe' (_drawBorder c) (Style.border pan)
-    N.roundedRect c px py w h rad 
-    N.fill c
-    N.stroke c
-    N.restore c
-    where _drawBorder c brd = do
-            N.strokeWidth c (Style.strokeWidth brd)
-            N.strokeColor c (Style.color brd)
+-- default implementation for RawWidget class
+instance RawWidgetClass (RawWidget d v) where
+    render c w = r c (panel w) (dataProps w) (visualProps w) where r = renderRW w
+    getBoundingBox w = box $ panel w
+    isInWidget w x y = let (N.V4 x1 y1 x2 y2) = getBoundingBox w
+                       in (x > x1) && (x < x2 + x1) && (y > y1) && (y < y2 + y1)
 
 
 -----------------------------------------------------------------------------------------
 -- WIDGETS: Text - basic text label
 -----------------------------------------------------------------------------------------
 
--- visual props data type for the text label: first, top left corner, then visual styling 
-data RawTextStyle = RawTextStyle (N.V2 CFloat) Style.Font
+-- visual props data type for the text label: first, top left corner, then visual styling, then whether to draw bounding panel 
+data RawTextStyle = RawTextStyle (N.V2 CFloat) Style.Font Bool 
 -- data props for the text label
 data RawTextData = RawTextData {
     labelText :: Text -- string to display, can be parts of it in text input etc
@@ -145,20 +95,21 @@ data RawTextData = RawTextData {
 type WidgetRawText = RawWidget RawTextData RawTextStyle
 
 -- constructor
-createRawText :: RawTextStyle -> RawTextData -> [RawEventHandler RawTextData RawTextStyle] -> WidgetRawText
-createRawText stl txt handlers = CreateWidget {
+createRawText :: RawTextStyle -> RawTextData -> WidgetRawText
+createRawText stl txt = CreateWidget {
+    panel = createDefaultPanel,
     dataProps = txt,
     visualProps = stl,
-    renderRW = _drawText,
-    handleEvents = handlers
+    renderRW = _drawText
 }
 
-_drawText :: N.Context -> RawTextData -> RawTextStyle -> IO ()
-_drawText c td (RawTextStyle (N.V2 x y) fnt) = do
+_drawText :: N.Context -> Panel -> RawTextData -> RawTextStyle -> IO ()
+_drawText c pan td (RawTextStyle (N.V2 x y) fnt shallDrawPanel) = do
     let fName = Style.fontName fnt 
         size  = Style.fontSize fnt
         clr   = Style.fontColor fnt
         txt   = labelText td
+    when shallDrawPanel (_drawPanel c pan)  
     N.beginPath c
     N.fontSize c size
     N.fontFace c fName -- TODO: ERROR HANDLING!!!!!

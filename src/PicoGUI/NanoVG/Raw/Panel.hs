@@ -23,6 +23,9 @@ Low-Level Widget is:
 What if we try a different approach - every widget is a Panel, which handles basic visuals (border, background etc) as well as Event Dispatch?
 Then we take a render function and pass it a partial function that takes some additional parameters for displaying stuff?
 
+Then a widget is:
+- drawPanel + it handles event dispatch automatically
+- render the widget itself
 -}
 -----------------------------------------------------------------------------------------
 
@@ -41,6 +44,21 @@ data Panel = CreatePanel {
   , id      :: Text
   , handler :: PanelEventHandler
 }
+
+-- constructor that sets up a panel with default event handling machinery (not implemented yet)
+createDefaultPanel = CreatePanel {
+    style = Style.Panel {
+          isComplexBorder = False
+        , border = Nothing
+        , cornerRad = 0 -- radius of the rounded corners, if 0 - square
+        , background = Style.BGColor $ N.rgba 0 0 0 0
+    },
+    box = N.V4 0 0 0 0,
+    id = "",
+    handler = defaultHandler
+}
+
+defaultHandler e p = p
 
 _drawPanel :: N.Context -> Panel -> IO ()
 _drawPanel c pan = do
