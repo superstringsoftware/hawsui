@@ -22,12 +22,14 @@ import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import           Data.List                 (intercalate)
 import           Data.Maybe                (catMaybes)
 import           Text.PrettyPrint as PP
+-- import           Data.Text
 
 -- import qualified Graphics.Rendering.OpenGL as GL
 import           Graphics.UI.GLFW          as GLFW
-import           PicoGUI.NanoVG.Widgets.Widget
+-- import           PicoGUI.NanoVG.Widgets.Widget
 
 import           PicoGUI.NanoVG.Raw.Events
+import           PicoGUI.NanoVG.Raw.Widgets
 
 --------------------------------------------------------------------------------
 
@@ -44,8 +46,8 @@ data State = State
     , stateDragging        :: !Bool
     , stateDragStartX      :: !Double
     , stateDragStartY      :: !Double
-  --  , stateUIWidgets       :: !PWList
-  --  , stateCursorInW       :: !PWList
+    , stateUIWidgets       :: !PWList
+    , stateCursorInW       :: !PWList
     }
 
 type Demo = RWST Env () State IO
@@ -152,14 +154,14 @@ processEvent ev =
           printEvent "cursor pos" [show x', show y']
           state <- get
           c <- asks envContext
-          -- let ui = stateUIWidgets state
-          -- inw <- liftIO $ inWidget c ui (realToFrac x) (realToFrac y)
-          -- mapM_ (liftIO . print . show) inw
-          {-
+          let ui = stateUIWidgets state
+              inw = inWidget ui (realToFrac x) (realToFrac y)
+          mapM_ (liftIO . print . getId) inw
+          
           put $ state
               { stateCursorInW       = inw
               }
-          -}
+          
           when (stateMouseDown state && not (stateDragging state)) $
             put $ state
               { stateDragging        = True

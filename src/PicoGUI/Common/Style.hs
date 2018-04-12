@@ -24,7 +24,7 @@ type Box = V4 Int
 data Dimension = Dpc !Int | Dpx !Int deriving (Show, Eq)
 
 -- need to follow CSS eventually
-data Line = Border {
+data Line = Line {
     strokeWidth :: !Dimension,       -- computed width, ALWAYS in pixels
     color       :: Color,
     strokeStyle :: Stroke

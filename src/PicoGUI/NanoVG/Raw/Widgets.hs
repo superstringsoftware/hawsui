@@ -53,12 +53,22 @@ Low-Level Widget is:
 -}
 -----------------------------------------------------------------------------------------
 
+-- polymorphic stuff to handle rendering elsewhere via interfaces
+-- eventually, need to move this to more efficient structures - vectors or hashmaps
+data PolymorphicWidget = forall a. RawWidgetClass a => PW a
+type PWList = [PolymorphicWidget]
+
+-- making polymorphic list of widgets an instance of widget itself
+instance RawWidgetClass PWList where
+    render c = mapM_ (f c)
+        where f c (PW x) = render c x
+
 -- Type function generating different widgets with data props of type a and visual props of type b
 data RawWidget d v = CreateWidget {
     panel       :: Panel, -- handles basic events and background etc.
     dataProps   :: d,
     visualProps :: v,
-    renderRW    :: N.Context -> Panel -> d -> v -> IO ()
+    renderRW    :: N.Context -> RawWidget d v -> IO ()
 }
 
 -- interface to the widgets
@@ -67,18 +77,29 @@ class RawWidgetClass w where
     render :: N.Context -> w -> IO()
     getBoundingBox :: w -> N.V4 CFloat
     isInWidget :: w -> CFloat -> CFloat -> Bool
+    getId :: w -> Text
 
+-- unwrapping polymorphic widget wrapper and making it an instance of the class
+instance RawWidgetClass PolymorphicWidget where
+    render c (PW w) = render c w
+    getBoundingBox (PW w) = getBoundingBox w
+    isInWidget (PW w) = isInWidget w
+    getId (PW w) = getId w 
     
 -- default implementation for RawWidget class
 instance RawWidgetClass (RawWidget d v) where
-    render c w = r c (panel w) (dataProps w) (visualProps w) where r = renderRW w
+    render c w = renderRW w c w 
     getBoundingBox w = box $ panel w
+    getId w = cid $ panel w
     isInWidget w x y = let (N.V4 x1 y1 x2 y2) = getBoundingBox w
                        in (x > x1) && (x < x2 + x1) && (y > y1) && (y < y2 + y1)
 
+-- return list of widgets with coords
+inWidget :: PWList -> CFloat -> CFloat -> PWList
+inWidget lst x y = Prelude.filter (isIn x y) lst where isIn x y (PW w) = isInWidget w x y
 
 -----------------------------------------------------------------------------------------
--- WIDGETS: Text - basic text label
+-- WIDGETS: Text - basic text label, with or without panel styling
 -----------------------------------------------------------------------------------------
 
 -- visual props data type for the text label: first, top left corner, then visual styling, then whether to draw bounding panel 
@@ -103,9 +124,12 @@ createRawText stl txt = CreateWidget {
     renderRW = _drawText
 }
 
-_drawText :: N.Context -> Panel -> RawTextData -> RawTextStyle -> IO ()
-_drawText c pan td (RawTextStyle (N.V2 x y) fnt shallDrawPanel) = do
-    let fName = Style.fontName fnt 
+_drawText :: N.Context -> WidgetRawText -> IO ()
+_drawText c w = do
+    let pan = panel w
+        td = dataProps w
+        (RawTextStyle (N.V2 x y) fnt shallDrawPanel) = visualProps w
+        fName = Style.fontName fnt 
         size  = Style.fontSize fnt
         clr   = Style.fontColor fnt
         txt   = labelText td

@@ -41,22 +41,25 @@ type PanelEventHandler = WEvent -> Panel -> Panel -- ok, we need a state monad h
 data Panel = CreatePanel {
     style   :: Style.Panel
   , box     :: N.V4 CFloat
-  , id      :: Text
+  , cid      :: Text
   , handler :: PanelEventHandler
 }
 
--- constructor that sets up a panel with default event handling machinery (not implemented yet)
-createDefaultPanel = CreatePanel {
+createBasicPanel :: Text -> N.V4 CFloat -> N.Color -> Panel
+createBasicPanel idn bx clr = CreatePanel {
     style = Style.Panel {
           isComplexBorder = False
         , border = Nothing
+        , borders = N.V4 Nothing Nothing Nothing Nothing
         , cornerRad = 0 -- radius of the rounded corners, if 0 - square
-        , background = Style.BGColor $ N.rgba 0 0 0 0
+        , background = Style.BGColor clr
     },
-    box = N.V4 0 0 0 0,
-    id = "",
+    box = bx,
+    cid = idn,
     handler = defaultHandler
 }
+
+createDefaultPanel = createBasicPanel "" (N.V4 0 0 0 0) (N.rgba 0 0 0 0)
 
 defaultHandler e p = p
 

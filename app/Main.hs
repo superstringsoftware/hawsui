@@ -26,9 +26,12 @@ import           Foreign.Ptr
 import           PicoGUI.NanoVG.Charts.Chart2D
 import           PicoGUI.NanoVG.Raw.Primitives as GUIP
 import           PicoGUI.NanoVG.MD.Color
-import           PicoGUI.NanoVG.Widgets.Widget as W
 import           PicoGUI.NanoVG.UI
 import           PicoGUI.NanoVG.Raw.Events
+import           PicoGUI.NanoVG.Raw.Widgets
+import qualified PicoGUI.NanoVG.Raw.Style as Style
+import           PicoGUI.NanoVG.Raw.Panel
+import qualified PicoGUI.Common.Style as CStyle
 
 import           Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
 import           Control.Monad.Trans.RWS.Strict  (RWST, ask, asks, evalRWST, get, modify, put, gets)
@@ -68,8 +71,8 @@ mainCycle = do
             , stateDragging        = False
             , stateDragStartX      = 0
             , stateDragStartY      = 0
-            --, stateUIWidgets       = testUI
-            --, stateCursorInW       = []
+            , stateUIWidgets       = testUI
+            , stateCursorInW       = []
             }
         runDemo env state
 
@@ -85,7 +88,7 @@ run :: Demo ()
 run = do
     w  <- asks envWindow
     c  <- asks envContext
-    -- ui <- gets stateUIWidgets
+    ui <- gets stateUIWidgets
 
     (mx,my) <- liftIO $ getCursorPos w
     -- putStrLn $ "Cursor position: " ++ (show mx) ++ ", " ++ (show my)
@@ -97,8 +100,8 @@ run = do
     liftIO $ glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT .|. GL_STENCIL_BUFFER_BIT)
     liftIO $ beginFrame c (fromIntegral width) (fromIntegral height) pxRatio
     liftIO $ NVG.textAlign c (S.fromList [AlignTop])
-    liftIO $ renderDemo c mx my width height
-    -- liftIO $ render c ui
+    -- liftIO $ renderDemo c mx my width height
+    liftIO $ render c ui
     liftIO $ endFrame c
     liftIO $ swapBuffers w
     liftIO $ waitEvents -- pollEvents
@@ -133,45 +136,47 @@ bubbles = U.fromList [
         (27,14,2.4)
     ]
 
-{-
-testButton = Button {
-    panel = Panel {
-        dimensions = V4 600 200 120 60,
-        cornerRad = 8,
-        background = Background Nothing (mdGrey 300),
-        singleBorder = Just $ Border 2 (rgba 220 220 100 220) GUIP.Solid 
-    },
-    textLabel = TextLabel {
-        labelText = "Enter",
-        GUIP.fontSize = 48,
-        fontName = "sans",
-        fontColor = mdBlack
-    },
-    W.padding = V4 8 8 8 8,
-    isDirty = False
-}
-
-testInput = InputText {
-    button =  Button {
-        panel = Panel {
-            dimensions = V4 600 300 220 60,
-            cornerRad = 0,
-            background = Background Nothing mdWhite,
-            singleBorder = Just $ Border 2 (rgb 220 50 220) GUIP.Solid 
+testButton :: WidgetRawText
+testButton = CreateWidget {
+    panel = CreatePanel {
+        style = Style.Panel {
+              Style.isComplexBorder = False
+            , Style.border = Just $ Style.Line 2 (rgba 220 220 100 220) CStyle.Solid 
+            , Style.borders = NVG.V4 Nothing Nothing Nothing Nothing
+            , Style.cornerRad = 8 -- radius of the rounded corners, if 0 - square
+            , Style.background = Style.BGColor (mdGrey 300)
         },
-        textLabel = TextLabel {
-            labelText = "input",
-            GUIP.fontSize = 48,
-            fontName = "sans",
-            fontColor = mdBlack
-        },
-        W.padding = V4 8 8 8 8,
-        isDirty = False
+        box = NVG.V4 600 200 120 60,
+        cid = "button 1",
+        handler = defaultHandler
     },
-    cursorPos = 0,
-    displayedStringCoords = V2 0 0
+    dataProps = RawTextData {
+        labelText = "Enter"
+      , styles = []
+    },
+    visualProps = RawTextStyle (NVG.V2 608 204) Style.Font {
+        Style.fontSize = 48,
+        Style.fontName = "sans",
+        Style.fontColor = mdBlack
+    } True,
+    renderRW = _drawText
 }
+    
+testText :: WidgetRawText
+testText = CreateWidget {
+    panel = createBasicPanel "line 1" (NVG.V4 600 300 100 36) mdBlack,
+    dataProps = RawTextData {
+        labelText = "This is a line of text"
+      , styles = []
+    },
+    visualProps = RawTextStyle (NVG.V2 600 300) Style.Font {
+        Style.fontSize = 36,
+        Style.fontName = "sans",
+        Style.fontColor = mdRed 500
+    } False,
+    renderRW = _drawText
+}
+    
 
 testUI :: PWList
-testUI = [PW testButton, PW testInput]
--}
+testUI = [PW testButton, PW testText]--, PW testInput]
