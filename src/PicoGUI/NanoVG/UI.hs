@@ -11,7 +11,6 @@ module PicoGUI.NanoVG.UI where
 import           Foreign.C.Types
 import           NanoVG as N
 import           PicoGUI.NanoVG.MD.Color
-import           PicoGUI.NanoVG.EventProcessor
 
 import qualified Data.Set as S
 
@@ -45,8 +44,8 @@ data State = State
     , stateDragging        :: !Bool
     , stateDragStartX      :: !Double
     , stateDragStartY      :: !Double
-    , stateUIWidgets       :: !PWList
-    , stateCursorInW       :: !PWList
+  --  , stateUIWidgets       :: !PWList
+  --  , stateCursorInW       :: !PWList
     }
 
 type Demo = RWST Env () State IO
@@ -153,18 +152,20 @@ processEvent ev =
           printEvent "cursor pos" [show x', show y']
           state <- get
           c <- asks envContext
-          let ui = stateUIWidgets state
-          inw <- liftIO $ inWidget c ui (realToFrac x) (realToFrac y)
-          mapM_ (liftIO . print . show) inw
+          -- let ui = stateUIWidgets state
+          -- inw <- liftIO $ inWidget c ui (realToFrac x) (realToFrac y)
+          -- mapM_ (liftIO . print . show) inw
+          {-
           put $ state
               { stateCursorInW       = inw
               }
+          -}
           when (stateMouseDown state && not (stateDragging state)) $
             put $ state
               { stateDragging        = True
               , stateDragStartX      = x
               , stateDragStartY      = y
-              , stateCursorInW       = inw
+              -- , stateCursorInW       = inw
               }
 
       (EventCursorEnter _ cs) ->

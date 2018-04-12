@@ -11,9 +11,9 @@ import           NanoVG as N
 import           Data.Text
 import           PicoGUI.NanoVG.MD.Color
 import           PicoGUI.NanoVG.Raw.Primitives as GUIP
-import           PicoGUI.NanoVG.EventProcessor
 import           Control.Monad (filterM)
 
+{-
 -- interface for the widgets
 class NVGWidget a where
     recalculate    :: a -> a
@@ -120,3 +120,5 @@ inWidget c lst x y = filterM (isIn c x y) lst
             b@(V4 x1 y1 x2 y2) <- getBoundingBox c w
             -- putStrLn $ "Checking if " ++ show x ++ ", " ++ show y ++ " is in " ++ show b
             return $ (x > x1) && (x < x2 + x1) && (y > y1) && (y < y2 + y1) 
+
+-}

@@ -68,8 +68,8 @@ mainCycle = do
             , stateDragging        = False
             , stateDragStartX      = 0
             , stateDragStartY      = 0
-            , stateUIWidgets       = testUI
-            , stateCursorInW       = []
+            --, stateUIWidgets       = testUI
+            --, stateCursorInW       = []
             }
         runDemo env state
 
@@ -85,7 +85,7 @@ run :: Demo ()
 run = do
     w  <- asks envWindow
     c  <- asks envContext
-    ui <- gets stateUIWidgets
+    -- ui <- gets stateUIWidgets
 
     (mx,my) <- liftIO $ getCursorPos w
     -- putStrLn $ "Cursor position: " ++ (show mx) ++ ", " ++ (show my)
@@ -97,8 +97,8 @@ run = do
     liftIO $ glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT .|. GL_STENCIL_BUFFER_BIT)
     liftIO $ beginFrame c (fromIntegral width) (fromIntegral height) pxRatio
     liftIO $ NVG.textAlign c (S.fromList [AlignTop])
-    -- liftIO $ renderDemo c mx my width height
-    liftIO $ render c ui
+    liftIO $ renderDemo c mx my width height
+    -- liftIO $ render c ui
     liftIO $ endFrame c
     liftIO $ swapBuffers w
     liftIO $ waitEvents -- pollEvents
@@ -111,7 +111,7 @@ run = do
 renderDemo :: Context -> Double -> Double -> Int -> Int -> IO ()
 renderDemo c mx my w h =
   do drawChart c defaultChart2DOptions 150 150
-     drawPanel c testPanel
+     --drawPanel c testPanel
      drawTestText c
      translate c 1000 60
      -- drawBubbles c bubbles (V4 150 1150 10 (-10))
@@ -133,6 +133,7 @@ bubbles = U.fromList [
         (27,14,2.4)
     ]
 
+{-
 testButton = Button {
     panel = Panel {
         dimensions = V4 600 200 120 60,
@@ -173,3 +174,4 @@ testInput = InputText {
 
 testUI :: PWList
 testUI = [PW testButton, PW testInput]
+-}
