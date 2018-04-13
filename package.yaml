@@ -37,6 +37,7 @@ dependencies:
 - vector
 - stm
 - pretty
+- linear
 
 library:
   source-dirs: src
