@@ -1,4 +1,5 @@
-{-#LANGUAGE OverloadedStrings, DuplicateRecordFields, ExistentialQuantification, TypeSynonymInstances, FlexibleInstances #-}
+{-#LANGUAGE OverloadedStrings, DuplicateRecordFields, ExistentialQuantification, 
+            TypeSynonymInstances, FlexibleInstances, Rank2Types #-}
 
 {-
 Button is a Panel with Text inside + hover / click event handling.
@@ -16,6 +17,7 @@ import           Control.Monad (filterM, when)
 import qualified PicoGUI.NanoVG.Raw.Style as Style
 import           PicoGUI.Util
 import           PicoGUI.NanoVG.Raw.Panel
+import           PicoGUI.NanoVG.Raw.Events
 
 -----------------------------------------------------------------------------------------
 {-
@@ -53,6 +55,16 @@ Low-Level Widget is:
 -}
 -----------------------------------------------------------------------------------------
 
+-- these events are higher level than GLFW we are handling in Raw.Events - they will be dispatched by a low level event processor
+-- that will handle stuff like which widget is active etc
+data WEvent = 
+    WEventCursorEnter -- cursor entered widget area
+  | WEventCursorLeave -- cursor left widget area
+  deriving Show
+
+type RawEventHandler datap visual = Event -> RawWidget datap visual -> IO (RawWidget datap visual)
+type WEventHandler datap visual  = WEvent -> RawWidget datap visual -> IO (RawWidget datap visual)
+
 -- polymorphic stuff to handle rendering elsewhere via interfaces
 -- eventually, need to move this to more efficient structures - vectors or hashmaps
 data PolymorphicWidget = forall a. RawWidgetClass a => PW a
@@ -63,12 +75,17 @@ instance RawWidgetClass PWList where
     render c = mapM_ (f c)
         where f c (PW x) = render c x
 
--- Type function generating different widgets with data props of type a and visual props of type b
-data RawWidget d v = CreateWidget {
+-- Type function generating different widgets with data props of type d and visual props of type v
+data RawWidget datap visual = CreateWidget {
     panel       :: Panel, -- handles basic events and background etc.
-    dataProps   :: d,
-    visualProps :: v,
-    renderRW    :: N.Context -> RawWidget d v -> IO ()
+    dataProps   :: datap,
+    visualProps :: visual,
+    wid         :: Text, -- unique id of the widget
+    renderRW    :: N.Context -> RawWidget datap visual -> IO (),
+    -- array of mappings for RAW event handlers: useful for low-level panel manipulation for custom widget development
+    revHandlers :: [Event -> RawWidget datap visual -> IO (RawWidget datap visual)],
+    -- higher-level event handlers, for taking care of the library users
+    evHandlers  :: [WEvent -> RawWidget datap visual -> IO (RawWidget datap visual)] 
 }
 
 -- interface to the widgets
@@ -78,6 +95,8 @@ class RawWidgetClass w where
     getBoundingBox :: w -> N.V4 CFloat
     isInWidget :: w -> CFloat -> CFloat -> Bool
     getId :: w -> Text
+    dispatchWEvent :: w -> WEvent -> IO [w]
+    -- addRawEventHandler :: w -> Event -> forall a b. RawEventHandler a b -> w
 
 -- unwrapping polymorphic widget wrapper and making it an instance of the class
 instance RawWidgetClass PolymorphicWidget where
@@ -85,14 +104,26 @@ instance RawWidgetClass PolymorphicWidget where
     getBoundingBox (PW w) = getBoundingBox w
     isInWidget (PW w) = isInWidget w
     getId (PW w) = getId w 
+    dispatchWEvent (PW w) e = do 
+        res <- dispatchWEvent w e
+        pure $ Prelude.map PW res
+    -- addRawEventHandler (PW w) = PW $ addRawEventHandler w 
     
 -- default implementation for RawWidget class
 instance RawWidgetClass (RawWidget d v) where
     render c w = renderRW w c w 
     getBoundingBox w = box $ panel w
-    getId w = cid $ panel w
+    getId = wid
+    dispatchWEvent = _dispatchWEvent
     isInWidget w x y = let (N.V4 x1 y1 x2 y2) = getBoundingBox w
                        in (x > x1) && (x < x2 + x1) && (y > y1) && (y < y2 + y1)
+
+_dispatchWEvent :: RawWidget datap visual -> WEvent -> IO [(RawWidget datap visual)]
+_dispatchWEvent w e = 
+    mp' (evHandlers w) e w
+    where 
+        mp' [] _ _ = pure []
+        mp' (f:fs) e' w' = (:) <$> (f e' w') <*> (mp' fs e' w')
 
 -- return list of widgets with coords
 inWidget :: PWList -> CFloat -> CFloat -> PWList
@@ -115,13 +146,29 @@ data RawTextData = RawTextData {
 -- visualProps :: RawPanelStyle - data on how to draw
 type WidgetRawText = RawWidget RawTextData RawTextStyle
 
+addRawEventHandler :: WidgetRawText -> (Event -> WidgetRawText -> IO WidgetRawText) -> WidgetRawText
+addRawEventHandler w fh = w { revHandlers = fh: revHandlers w }
+
+addWEventHandler :: WidgetRawText -> (WEvent -> WidgetRawText -> IO WidgetRawText) -> WidgetRawText
+addWEventHandler w fh = w { evHandlers = fh: evHandlers w }
+
+standardHandler :: WEvent -> WidgetRawText -> IO WidgetRawText
+standardHandler WEventCursorEnter w@(CreateWidget pan dp vp wid _ _ _) = do
+    print $ "Handling WEventCursorEnter on " ++ show wid
+    pure w
+
+-- handleEvents :: Event -> WidgetRawText -> 
+    
+
 -- constructor
-createRawText :: RawTextStyle -> RawTextData -> WidgetRawText
-createRawText stl txt = CreateWidget {
+createRawText :: Text -> RawTextStyle -> RawTextData -> WidgetRawText
+createRawText tid stl txt = CreateWidget {
     panel = createDefaultPanel,
     dataProps = txt,
     visualProps = stl,
-    renderRW = _drawText
+    renderRW = _drawText,
+    wid = tid,
+    evHandlers = [standardHandler]
 }
 
 _drawText :: N.Context -> WidgetRawText -> IO ()

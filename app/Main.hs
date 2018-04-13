@@ -146,9 +146,8 @@ testButton = CreateWidget {
             , Style.cornerRad = 8 -- radius of the rounded corners, if 0 - square
             , Style.background = Style.BGColor (mdGrey 300)
         },
-        box = NVG.V4 600 200 120 60,
-        cid = "button 1",
-        handler = defaultHandler
+        box = NVG.V4 600 200 120 60
+      
     },
     dataProps = RawTextData {
         labelText = "Enter"
@@ -159,12 +158,14 @@ testButton = CreateWidget {
         Style.fontName = "sans",
         Style.fontColor = mdBlack
     } True,
-    renderRW = _drawText
+    renderRW = _drawText,
+    wid = "button 1",
+    evHandlers = [standardHandler]
 }
     
 testText :: WidgetRawText
 testText = CreateWidget {
-    panel = createBasicPanel "line 1" (NVG.V4 600 300 100 36) mdBlack,
+    panel = createBasicPanel (NVG.V4 600 300 100 36) mdBlack,
     dataProps = RawTextData {
         labelText = "This is a line of text"
       , styles = []
@@ -174,7 +175,9 @@ testText = CreateWidget {
         Style.fontName = "sans",
         Style.fontColor = mdRed 500
     } False,
-    renderRW = _drawText
+    renderRW = _drawText,
+    wid = "line 1",
+    evHandlers = [standardHandler]
 }
     
 

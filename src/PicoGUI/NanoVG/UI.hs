@@ -161,6 +161,10 @@ processEvent ev =
           put $ state
               { stateCursorInW       = inw
               }
+
+          -- dispatching event to the widgets
+          let ff e w = dispatchWEvent w e
+          liftIO $ mapM_ (ff WEventCursorEnter) inw 
           
           when (stateMouseDown state && not (stateDragging state)) $
             put $ state

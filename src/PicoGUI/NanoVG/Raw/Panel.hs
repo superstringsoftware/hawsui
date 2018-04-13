@@ -11,6 +11,7 @@ import           Control.Monad (filterM)
 -- import           PicoGUI.NanoVG.Raw.Events
 import qualified PicoGUI.NanoVG.Raw.Style as Style
 import           PicoGUI.Util
+import           PicoGUI.NanoVG.Raw.Events
 
 -----------------------------------------------------------------------------------------
 {-
@@ -29,24 +30,15 @@ Then a widget is:
 -}
 -----------------------------------------------------------------------------------------
 
--- these events are higher level than GLFW we are handling in Raw.Events - they will be dispatched by a low level event processor
--- that will handle stuff like which widget is active etc
-data WEvent = 
-    WEventCursorEnter -- cursor entered widget area
-  | WEventCursorLeave -- cursor left widget area
-  deriving Show
-
-type PanelEventHandler = WEvent -> Panel -> Panel -- ok, we need a state monad here, no way around it. Events need to flow.
 
 data Panel = CreatePanel {
-    style   :: Style.Panel
-  , box     :: N.V4 CFloat
-  , cid      :: Text
-  , handler :: PanelEventHandler
+    style            :: Style.Panel
+  , box              :: N.V4 CFloat
+  -- , handlePanelEvent :: Event -> Panel -> IO Panel -- it simply changes the current panel without doing much else, probably only good for hover
 }
 
-createBasicPanel :: Text -> N.V4 CFloat -> N.Color -> Panel
-createBasicPanel idn bx clr = CreatePanel {
+createBasicPanel :: N.V4 CFloat -> N.Color -> Panel
+createBasicPanel bx clr = CreatePanel {
     style = Style.Panel {
           isComplexBorder = False
         , border = Nothing
@@ -54,14 +46,12 @@ createBasicPanel idn bx clr = CreatePanel {
         , cornerRad = 0 -- radius of the rounded corners, if 0 - square
         , background = Style.BGColor clr
     },
-    box = bx,
-    cid = idn,
-    handler = defaultHandler
+    box = bx
+    -- handlePanelEvent = _hpe
 }
 
-createDefaultPanel = createBasicPanel "" (N.V4 0 0 0 0) (N.rgba 0 0 0 0)
 
-defaultHandler e p = p
+createDefaultPanel = createBasicPanel (N.V4 0 0 0 0) (N.rgba 0 0 0 0)
 
 _drawPanel :: N.Context -> Panel -> IO ()
 _drawPanel c pan = do

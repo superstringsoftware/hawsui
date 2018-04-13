@@ -55,7 +55,7 @@ data VisualClass = VisualClass {
     name    :: Text -- name of the class, should be unique
   , panel   :: Maybe Panel
   , font    :: Maybe Font
-}
+} deriving (Show, Eq)
 
 ----------------------------------------------------------------------------------------
 -- Tests and stuff
